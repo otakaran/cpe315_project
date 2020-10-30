@@ -9,18 +9,26 @@
 #define LR rf[LR_REG]
 #define SP rf[SP_REG]
 
+#define BYTE_BITS 8
+
 Stats stats;
 Caches caches(0);
 
 // CPE 315: you'll need to implement a custom sign-extension function
 // in addition to the ones given below, specifically for the unconditional
 // branch instruction, which has an 11-bit immediate field
+// Done
 unsigned int signExtend16to32ui(short i) {
   return static_cast<unsigned int>(static_cast<int>(i));
 }
 
 unsigned int signExtend8to32ui(char i) {
   return static_cast<unsigned int>(static_cast<int>(i));
+}
+
+unsigned int signExtend11to32ui(short i) {
+  if (i & 0x0800) { i |= 0xF000; } 
+  return signExtend16to32ui(i);
 }
 
 // This is the global object you'll use to store condition codes N,Z,V,C
@@ -30,7 +38,23 @@ ASPR flags;
 // CPE 315: You need to implement a function to set the Negative and Zero
 // flags for each instruction that does that. It only needs to take
 // one parameter as input, the result of whatever operation is executing
-// TODO
+// Done
+
+static void setZFlag(int result) {
+  if (result == 0) { flags.Z = 1; } 
+  else { flags.Z = 0; }
+}
+
+static void setNFlag(int result) {
+  if (result < 0) { flags.N = 1; } 
+  else { flags.N = 0; }
+}
+
+static int countBits(unsigned short word) {
+  int count = 0, i = 0;
+  for ( ; i < 8; i++) { count += (word >> i) & 1; }
+  return count;
+}
 
 // This function is complete, you should not have to modify it
 void setCarryOverflow (int num1, int num2, OFType oftype) {
@@ -207,6 +231,8 @@ void execute() {
   LD_ST_Ops ldst_ops;
   MISC_Ops misc_ops;
 
+  // TODO stats
+
   // This counts as a write to the PC register
   rf.write(PC_REG, pctarget);
 
@@ -215,35 +241,70 @@ void execute() {
   // CPE 315: The bulk of your work is in the following switch statement
   // All instructions will need to have stats and cache access info added
   // as appropriate for that instruction.
+  // Done: flags, TODO: stats
   switch(itype) {
     case ALU:
       add_ops = decode(alu);
       switch(add_ops) {
         case ALU_LSLI:
+          // TODO stats
+          rf.write(alu.instr.lsli.rd, rf[alu.instr.lsli.rm] << alu.instr.lsli.imm);
+          setCarryOverflow(rf[alu.instr.lsli.rm], alu.instr.lsli.imm, OF_SHIFT);
+          setZFlag(rf[alu.instr.lsli.rm] << alu.instr.lsli.imm);
+          setNFlag(rf[alu.instr.lsli.rm] << alu.instr.lsli.imm);
           break;
         case ALU_ADDR:
-          // needs stats and flags
+          // TODO stats
           rf.write(alu.instr.addr.rd, rf[alu.instr.addr.rn] + rf[alu.instr.addr.rm]);
+          setCarryOverflow(rf[alu.instr.addr.rn], rf[alu.instr.addr.rm], OF_ADD);
+          setZFlag(rf[alu.instr.addr.rn] + rf[alu.instr.addr.rm]);
+          setNFlag(rf[alu.instr.addr.rn] + rf[alu.instr.addr.rm]);
           break;
         case ALU_SUBR:
+          // TODO stats
+          rf.write(alu.instr.subr.rd, rf[alu.instr.subr.rn] - rf[alu.instr.subr.rm]);
+          setCarryOverflow(rf[alu.instr.subr.rn], rf[alu.instr.subr.rm], OF_SUB);
+          setZFlag(rf[alu.instr.subr.rn] - rf[alu.instr.subr.rm]);
+          setNFlag(rf[alu.instr.subr.rn] - rf[alu.instr.subr.rm]);
           break;
         case ALU_ADD3I:
-          // needs stats and flags
+          // TODO stats
           rf.write(alu.instr.add3i.rd, rf[alu.instr.add3i.rn] + alu.instr.add3i.imm);
+          setCarryOverflow(rf[alu.instr.add3i.rn],alu.instr.add3i.imm,OF_ADD);
+          setNFlag(rf[alu.instr.add3i.rn] + alu.instr.add3i.imm);
           break;
         case ALU_SUB3I:
+          // TODO stats
+          rf.write(alu.instr.sub3i.rd, rf[alu.instr.sub3i.rn] - alu.instr.sub3i.imm);
+          setCarryOverflow(rf[alu.instr.sub3i.rn], alu.instr.sub3i.imm ,OF_SUB);
+          setZFlag(rf[alu.instr.sub3i.rn] - alu.instr.sub3i.imm);
+          setNFlag(rf[alu.instr.sub3i.rn] - alu.instr.sub3i.imm);
           break;
         case ALU_MOV:
-          // needs stats and flags
+          // TODO stats
           rf.write(alu.instr.mov.rdn, alu.instr.mov.imm);
+          setZFlag(alu.instr.mov.imm);
+          setNFlag(alu.instr.mov.imm);
           break;
         case ALU_CMP:
+          // TODO stats
+          setCarryOverflow(rf[alu.instr.cmp.rdn], alu.instr.cmp.imm, OF_SUB);
+          setZFlag(rf[alu.instr.cmp.rdn] - alu.instr.cmp.imm);
+          setNFlag(rf[alu.instr.cmp.rdn] - alu.instr.cmp.imm);
           break;
         case ALU_ADD8I:
-          // needs stats and flags
+          // TODO stats
           rf.write(alu.instr.add8i.rdn, rf[alu.instr.add8i.rdn] + alu.instr.add8i.imm);
+          setCarryOverflow(rf[alu.instr.add8i.rdn], alu.instr.add8i.imm, OF_ADD);
+          setZFlag(rf[alu.instr.add8i.rdn] + alu.instr.add8i.imm);
+          setNFlag(rf[alu.instr.add8i.rdn] + alu.instr.add8i.imm);
           break;
         case ALU_SUB8I:
+          // TODO stats
+          rf.write(alu.instr.sub8i.rdn, rf[alu.instr.sub8i.rdn] - alu.instr.sub8i.imm);
+          setCarryOverflow(rf[alu.instr.sub8i.rdn], alu.instr.sub8i.imm, OF_SUB);
+          setNFlag(rf[alu.instr.sub8i.rdn] - alu.instr.sub8i.imm);
+          setZFlag(rf[alu.instr.sub8i.rdn] - alu.instr.sub8i.imm);
           break;
         default:
           cout << "instruction not implemented" << endl;
@@ -286,20 +347,31 @@ void execute() {
       dp_ops = decode(dp);
       switch(dp_ops) {
         case DP_CMP:
-          // need to implement
+          // need to implement stats
+          setCarryOverflow(rf[dp.instr.DP_Instr.rdn], dp.instr.DP_Instr.rm, OF_SUB);
+          setZFlag(rf[dp.instr.DP_Instr.rdn] - rf[dp.instr.DP_Instr.rm]);
+          setNFlag(rf[dp.instr.DP_Instr.rdn] - rf[dp.instr.DP_Instr.rm]);
           break;
       }
       break;
     case SPECIAL:
       sp_ops = decode(sp);
       switch(sp_ops) {
+        // needs stats, flags done
         case SP_MOV:
-          // needs stats and flags
           rf.write((sp.instr.mov.d << 3 ) | sp.instr.mov.rd, rf[sp.instr.mov.rm]);
+          setNFlag(rf[sp.instr.mov.rm]);
+          setZFlag(rf[sp.instr.mov.rm]);
           break;
         case SP_ADD:
+          rf.write((sp.instr.add.d << 3 ) | sp.instr.add.rd, rf[(sp.instr.add.d << 3 ) | sp.instr.add.rd] + rf[sp.instr.add.rm]);
+          setNFlag(rf[((sp.instr.add.d << 3 ) | sp.instr.add.rd)] + rf[sp.instr.add.rm]);
+          setZFlag(rf[((sp.instr.add.d << 3 ) | sp.instr.add.rd)] + rf[sp.instr.add.rm]);
+          setCarryOverflow(rf[((sp.instr.add.d << 3 ) | sp.instr.add.rd)], rf[sp.instr.add.rm], OF_ADD);
         case SP_CMP:
-          // need to implement these
+          setNFlag(rf[((sp.instr.cmp.d << 3 ) | sp.instr.cmp.rd)] - rf[sp.instr.cmp.rm]);
+          setZFlag(rf[((sp.instr.cmp.d << 3 ) | sp.instr.cmp.rd)] - rf[sp.instr.cmp.rm]);
+          setCarryOverflow(rf[((sp.instr.cmp.d << 3 ) | sp.instr.cmp.rd)], rf[sp.instr.cmp.rm], OF_SUB);
           break;
       }
       break;
@@ -319,10 +391,16 @@ void execute() {
           rf.write(ld_st.instr.ld_st_imm.rt, dmem[addr]);
           break;
         case STRR:
-          // need to implement
+          // stats todo
+          addr = rf[ld_st.instr.ld_st_reg.rn] + rf[ld_st.instr.ld_st_reg.rm];
+          dmem.write(addr, rf[ld_st.instr.ld_st_reg.rt]);
+          caches.access(addr);
           break;
         case LDRR:
-          // need to implement
+          // todo stats, todo test
+          addr = rf[ld_st.instr.ld_st_reg.rn] + rf[ld_st.instr.ld_st_reg.rm];
+          rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr]);
+          caches.access(addr);
           break;
         case STRBI:
           // need to implement
@@ -342,17 +420,47 @@ void execute() {
       misc_ops = decode(misc);
       switch(misc_ops) {
         case MISC_PUSH:
-          // need to implement
+          // todo stats
+          BitCount = countBits(misc.instr.push.reg_list) + misc.instr.push.m;
+          addr = SP - 4 * BitCount;
+          for (i = 0; i < BYTE_BITS; i++) {
+             if ((misc.instr.push.reg_list >> i) & 1) {
+                dmem.write(addr, rf[i]);
+                caches.access(addr);
+                addr += 4;
+             }            
+          }
+          // Update PC register if m is active
+          if (misc.instr.push.m) {
+             dmem.write(addr, LR);
+             caches.access(addr);
+          }
+          rf.write(SP_REG, SP - BitCount * 4);
           break;
         case MISC_POP:
-          // need to implement
+          // todo stats
+          BitCount = countBits(misc.instr.pop.reg_list) + misc.instr.pop.m;
+          addr = SP;
+          for (i = 0; i < BYTE_BITS; i++) {
+             if ((misc.instr.pop.reg_list >> i) & 1) {
+                rf.write(i, dmem[addr]);
+                caches.access(addr);
+                addr += 4;
+             }            
+          }
+          // Update PC register if m is active
+          if (misc.instr.pop.m) {
+             rf.write(PC_REG, dmem[addr]);
+             caches.access(addr);
+          }
+          rf.write(SP_REG, SP + BitCount * 4);
           break;
         case MISC_SUB:
-          // functionally complete, needs stats
+          // todo stats
           rf.write(SP_REG, SP - (misc.instr.sub.imm*4));
           break;
         case MISC_ADD:
-          // functionally complete, needs stats
+          // todo stats
           rf.write(SP_REG, SP + (misc.instr.add.imm*4));
           break;
       }
@@ -361,7 +469,7 @@ void execute() {
       decode(cond);
       // Once you've completed the checkCondition function,
       // this should work for all your conditional branches.
-      // needs stats
+      // todo stats
       if (checkCondition(cond.instr.b.cond)){
         rf.write(PC_REG, PC + 2 * signExtend8to32ui(cond.instr.b.imm) + 2);
       }
@@ -369,15 +477,38 @@ void execute() {
     case UNCOND:
       // Essentially the same as the conditional branches, but with no
       // condition check, and an 11-bit immediate field
+      // todo stats
       decode(uncond);
+      rf.write(PC_REG, PC + (2 * signExtend11to32ui(uncond.instr.b.imm) + 2));
       break;
     case LDM:
       decode(ldm);
-      // need to implement
+      BitCount = countBits(ldm.instr.ldm.reg_list);
+      addr = rf[ldm.instr.ldm.rn];
+
+      for (i = 0; i < BYTE_BITS; i++) {
+         if ((ldm.instr.ldm.reg_list >> i) & 1) {
+            rf.write(i, dmem[addr]);
+            caches.access(addr);
+            addr += 4;
+         }            
+      }
+      rf.write(ldm.instr.ldm.rn, rf[ldm.instr.ldm.rn] + (BitCount * 4));
       break;
     case STM:
       decode(stm);
-      // need to implement
+      BitCount = countBits(stm.instr.stm.reg_list);
+      addr = rf[stm.instr.stm.rn];
+      
+      for (i = 0; i < BYTE_BITS; i++) {
+         if ((stm.instr.stm.reg_list >> i) & 1) {
+            dmem.write(addr, rf[i]);
+            caches.access(addr);
+            addr += 4;
+            stats.numRegReads++;
+         }            
+      }
+      rf.write(stm.instr.stm.rn, rf[stm.instr.stm.rn] + BitCount * 4);
       break;
     case LDRL:
       // This instruction is complete, nothing needed
