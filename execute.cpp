@@ -52,7 +52,7 @@ static void setNFlag(int result) {
 
 static int countBits(unsigned short word) {
   int count = 0, i = 0;
-  for ( ; i < 8; i++) { count += (word >> i) & 1; }
+  for ( ; i < BYTE_BITS; i++) { count += (word >> i) & 1; }
   return count;
 }
 
