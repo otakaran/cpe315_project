@@ -249,64 +249,71 @@ void execute() {
       add_ops = decode(alu);
       switch(add_ops) {
         case ALU_LSLI:
-          // TODO stats
           rf.write(alu.instr.lsli.rd, rf[alu.instr.lsli.rm] << alu.instr.lsli.imm);
           setCarryOverflow(rf[alu.instr.lsli.rm], alu.instr.lsli.imm, OF_SHIFT);
           setZFlag(rf[alu.instr.lsli.rm] << alu.instr.lsli.imm);
           setNFlag(rf[alu.instr.lsli.rm] << alu.instr.lsli.imm);
+          stats.numRegReads++;
+          stats.numRegWrites++;
           break;
         case ALU_ADDR:
-          // TODO stats
           rf.write(alu.instr.addr.rd, rf[alu.instr.addr.rn] + rf[alu.instr.addr.rm]);
           setCarryOverflow(rf[alu.instr.addr.rn], rf[alu.instr.addr.rm], OF_ADD);
           setZFlag(rf[alu.instr.addr.rn] + rf[alu.instr.addr.rm]);
           setNFlag(rf[alu.instr.addr.rn] + rf[alu.instr.addr.rm]);
+          stats.numRegReads += 2;
+          stats.numRegWrites++;
           break;
         case ALU_SUBR:
-          // TODO stats
           rf.write(alu.instr.subr.rd, rf[alu.instr.subr.rn] - rf[alu.instr.subr.rm]);
           setCarryOverflow(rf[alu.instr.subr.rn], rf[alu.instr.subr.rm], OF_SUB);
           setZFlag(rf[alu.instr.subr.rn] - rf[alu.instr.subr.rm]);
           setNFlag(rf[alu.instr.subr.rn] - rf[alu.instr.subr.rm]);
+          stats.numRegReads += 2;
+          stats.numRegWrites++;
           break;
         case ALU_ADD3I:
-          // TODO stats
           rf.write(alu.instr.add3i.rd, rf[alu.instr.add3i.rn] + alu.instr.add3i.imm);
           setCarryOverflow(rf[alu.instr.add3i.rn],alu.instr.add3i.imm,OF_ADD);
           setNFlag(rf[alu.instr.add3i.rn] + alu.instr.add3i.imm);
+          stats.numRegReads++;
+          stats.numRegWrites++;
           break;
         case ALU_SUB3I:
-          // TODO stats
           rf.write(alu.instr.sub3i.rd, rf[alu.instr.sub3i.rn] - alu.instr.sub3i.imm);
           setCarryOverflow(rf[alu.instr.sub3i.rn], alu.instr.sub3i.imm ,OF_SUB);
           setZFlag(rf[alu.instr.sub3i.rn] - alu.instr.sub3i.imm);
           setNFlag(rf[alu.instr.sub3i.rn] - alu.instr.sub3i.imm);
+          stats.numRegReads++;
+          stats.numRegWrites++;
           break;
         case ALU_MOV:
-          // TODO stats
           rf.write(alu.instr.mov.rdn, alu.instr.mov.imm);
           setZFlag(alu.instr.mov.imm);
           setNFlag(alu.instr.mov.imm);
+          stats.numRegWrites++;
           break;
         case ALU_CMP:
-          // TODO stats
           setCarryOverflow(rf[alu.instr.cmp.rdn], alu.instr.cmp.imm, OF_SUB);
           setZFlag(rf[alu.instr.cmp.rdn] - alu.instr.cmp.imm);
           setNFlag(rf[alu.instr.cmp.rdn] - alu.instr.cmp.imm);
+          stats.numRegReads++;
           break;
         case ALU_ADD8I:
-          // TODO stats
           rf.write(alu.instr.add8i.rdn, rf[alu.instr.add8i.rdn] + alu.instr.add8i.imm);
           setCarryOverflow(rf[alu.instr.add8i.rdn], alu.instr.add8i.imm, OF_ADD);
           setZFlag(rf[alu.instr.add8i.rdn] + alu.instr.add8i.imm);
           setNFlag(rf[alu.instr.add8i.rdn] + alu.instr.add8i.imm);
+          stats.numRegReads++;
+          stats.numRegWrites++;
           break;
         case ALU_SUB8I:
-          // TODO stats
           rf.write(alu.instr.sub8i.rdn, rf[alu.instr.sub8i.rdn] - alu.instr.sub8i.imm);
           setCarryOverflow(rf[alu.instr.sub8i.rdn], alu.instr.sub8i.imm, OF_SUB);
           setNFlag(rf[alu.instr.sub8i.rdn] - alu.instr.sub8i.imm);
           setZFlag(rf[alu.instr.sub8i.rdn] - alu.instr.sub8i.imm);
+          stats.numRegReads++;
+          stats.numRegWrites++;
           break;
         default:
           cout << "instruction not implemented" << endl;
@@ -337,7 +344,7 @@ void execute() {
         // Target address is also computed from that point
         rf.write(PC_REG, PC + 2 + addr);
 
-        stats.numRegReads += 1;
+        stats.numRegReads ++;
         stats.numRegWrites += 2; 
       }
       else {
@@ -494,7 +501,7 @@ void execute() {
       decode(cond);
       // Once you've completed the checkCondition function,
       // this should work for all your conditional branches.
-      // todo stats (complex)
+      // todo stats (hard)
 
       if (checkCondition(cond.instr.b.cond)) {
         rf.write(PC_REG, PC + 2 * signExtend8to32ui(cond.instr.b.imm) + 2);
@@ -505,9 +512,11 @@ void execute() {
     case UNCOND:
       // Essentially the same as the conditional branches, but with no
       // condition check, and an 11-bit immediate field
-      // todo stats
+      // todo some stats
       decode(uncond);
       rf.write(PC_REG, PC + (2 * signExtend11to32ui(uncond.instr.b.imm) + 2));
+      stats.numRegWrites++;
+      stats.numRegReads++;
       break;
     case LDM:
       decode(ldm);
