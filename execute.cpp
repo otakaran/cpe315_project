@@ -231,7 +231,9 @@ void execute() {
   LD_ST_Ops ldst_ops;
   MISC_Ops misc_ops;
 
-  // TODO stats
+  stats.instrs++;
+
+  // TODO most other stats
 
   // This counts as a write to the PC register
   rf.write(PC_REG, pctarget);
@@ -354,6 +356,7 @@ void execute() {
           break;
       }
       break;
+
     case SPECIAL:
       sp_ops = decode(sp);
       switch(sp_ops) {
@@ -375,47 +378,67 @@ void execute() {
           break;
       }
       break;
+
     case LD_ST:
       // You'll want to use these load and store models
       // to implement ldrb/strb, ldm/stm and push/pop
       ldst_ops = decode(ld_st);
       switch(ldst_ops) {
         case STRI:
-          // functionally complete, needs stats
+          // todo stats
           addr = rf[ld_st.instr.ld_st_imm.rn] + ld_st.instr.ld_st_imm.imm * 4;
           dmem.write(addr, rf[ld_st.instr.ld_st_imm.rt]);
+          caches.access(addr);
           break;
         case LDRI:
-          // functionally complete, needs stats
+          // todo stats
           addr = rf[ld_st.instr.ld_st_imm.rn] + ld_st.instr.ld_st_imm.imm * 4;
           rf.write(ld_st.instr.ld_st_imm.rt, dmem[addr]);
+          caches.access(addr);
           break;
         case STRR:
-          // stats todo
+          // todo stats 
           addr = rf[ld_st.instr.ld_st_reg.rn] + rf[ld_st.instr.ld_st_reg.rm];
           dmem.write(addr, rf[ld_st.instr.ld_st_reg.rt]);
           caches.access(addr);
           break;
         case LDRR:
-          // todo stats, todo test
+          // todo stats
           addr = rf[ld_st.instr.ld_st_reg.rn] + rf[ld_st.instr.ld_st_reg.rm];
           rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr]);
           caches.access(addr);
           break;
         case STRBI:
-          // need to implement
+          // todo stats
+          addr = ld_st.instr.ld_st_imm.imm + rf[ld_st.instr.ld_st_reg.rn];
+          temp = dmem[addr];
+          temp.set_data_ubyte4(0, rf[ld_st.instr.ld_st_reg.rt] & 0xFF);
+          dmem.write(addr, temp);
+          caches.access(addr);
           break;
         case LDRBI:
-          // need to implement
+          // todo stats
+          addr = ld_st.instr.ld_st_imm.imm + rf[ld_st.instr.ld_st_reg.rn];
+          rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr].data_ubyte4(0));
+          caches.access(addr);
           break;
         case STRBR:
-          // need to implement
+          // todo stats
+          addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
+          temp = dmem[addr];
+          temp.set_data_ubyte4(0, rf[ld_st.instr.ld_st_reg.rt] & 0xFF);
+          dmem.write(addr, temp);
+          caches.access(addr);
           break;
         case LDRBR:
-          // need to implement
+          // todo stats
+          addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
+          rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr].data_ubyte4(0));
+          caches.access(addr);
           break;
       }
       break;
+
     case MISC:
       misc_ops = decode(misc);
       switch(misc_ops) {
@@ -437,6 +460,7 @@ void execute() {
           }
           rf.write(SP_REG, SP - BitCount * 4);
           break;
+
         case MISC_POP:
           // todo stats
           BitCount = countBits(misc.instr.pop.reg_list) + misc.instr.pop.m;
@@ -465,13 +489,17 @@ void execute() {
           break;
       }
       break;
+
     case COND:
       decode(cond);
       // Once you've completed the checkCondition function,
       // this should work for all your conditional branches.
-      // todo stats
-      if (checkCondition(cond.instr.b.cond)){
+      // todo stats (complex)
+
+      if (checkCondition(cond.instr.b.cond)) {
         rf.write(PC_REG, PC + 2 * signExtend8to32ui(cond.instr.b.imm) + 2);
+        stats.numRegWrites++;
+        stats.numRegReads++;
       }
       break;
     case UNCOND:
@@ -535,6 +563,9 @@ void execute() {
       // needs stats
       decode(addsp);
       rf.write(addsp.instr.add.rd, SP + (addsp.instr.add.imm*4));
+      setNFlag(SP + (addsp.instr.add.imm * 4));
+      setZFlag(SP + (addsp.instr.add.imm * 4));
+      setCarryOverflow(SP,addsp.instr.add.imm * 4, OF_ADD);
       break;
     default:
       cout << "[ERROR] Unknown Instruction to be executed" << endl;
