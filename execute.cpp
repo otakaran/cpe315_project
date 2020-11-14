@@ -405,13 +405,13 @@ void execute() {
           break;
         case STRR:
           // todo stats 
-          addr = rf[ld_st.instr.ld_st_reg.rn] + rf[ld_st.instr.ld_st_reg.rm];
+          addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
           dmem.write(addr, rf[ld_st.instr.ld_st_reg.rt]);
           caches.access(addr);
           break;
         case LDRR:
           // todo stats
-          addr = rf[ld_st.instr.ld_st_reg.rn] + rf[ld_st.instr.ld_st_reg.rm];
+          addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
           rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr]);
           caches.access(addr);
           break;
