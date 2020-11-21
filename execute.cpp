@@ -233,17 +233,16 @@ void execute() {
 
   stats.instrs++;
 
-  // TODO most other stats
-
   // This counts as a write to the PC register
   rf.write(PC_REG, pctarget);
-
+  stats.numRegReads++;
+  stats.numRegWrites++;
   itype = decode(ALL_Types(instr));
 
   // CPE 315: The bulk of your work is in the following switch statement
   // All instructions will need to have stats and cache access info added
   // as appropriate for that instruction.
-  // Done: flags, TODO: stats
+  // Done: flags, done stats
   switch(itype) {
     case ALU:
       add_ops = decode(alu);
@@ -344,7 +343,7 @@ void execute() {
         // Target address is also computed from that point
         rf.write(PC_REG, PC + 2 + addr);
 
-        stats.numRegReads ++;
+        stats.numRegReads++;
         stats.numRegWrites += 2; 
       }
       else {
@@ -360,6 +359,7 @@ void execute() {
           setCarryOverflow(rf[dp.instr.DP_Instr.rdn], dp.instr.DP_Instr.rm, OF_SUB);
           setZFlag(rf[dp.instr.DP_Instr.rdn] - rf[dp.instr.DP_Instr.rm]);
           setNFlag(rf[dp.instr.DP_Instr.rdn] - rf[dp.instr.DP_Instr.rm]);
+          stats.numRegReads += 2;
           break;
       }
       break;
@@ -372,16 +372,21 @@ void execute() {
           rf.write((sp.instr.mov.d << 3 ) | sp.instr.mov.rd, rf[sp.instr.mov.rm]);
           setNFlag(rf[sp.instr.mov.rm]);
           setZFlag(rf[sp.instr.mov.rm]);
+          stats.numRegReads++;
+          stats.numRegWrites++;
           break;
         case SP_ADD:
           rf.write((sp.instr.add.d << 3 ) | sp.instr.add.rd, rf[(sp.instr.add.d << 3 ) | sp.instr.add.rd] + rf[sp.instr.add.rm]);
           setNFlag(rf[((sp.instr.add.d << 3 ) | sp.instr.add.rd)] + rf[sp.instr.add.rm]);
           setZFlag(rf[((sp.instr.add.d << 3 ) | sp.instr.add.rd)] + rf[sp.instr.add.rm]);
           setCarryOverflow(rf[((sp.instr.add.d << 3 ) | sp.instr.add.rd)], rf[sp.instr.add.rm], OF_ADD);
+          stats.numRegReads += 2;
+          stats.numRegWrites++;
         case SP_CMP:
           setNFlag(rf[((sp.instr.cmp.d << 3 ) | sp.instr.cmp.rd)] - rf[sp.instr.cmp.rm]);
           setZFlag(rf[((sp.instr.cmp.d << 3 ) | sp.instr.cmp.rd)] - rf[sp.instr.cmp.rm]);
           setCarryOverflow(rf[((sp.instr.cmp.d << 3 ) | sp.instr.cmp.rd)], rf[sp.instr.cmp.rm], OF_SUB);
+          stats.numRegReads += 2;
           break;
       }
       break;
@@ -392,31 +397,36 @@ void execute() {
       ldst_ops = decode(ld_st);
       switch(ldst_ops) {
         case STRI:
-          // todo stats
+          stats.numRegReads += 2;
+          stats.numMemWrites++;
           addr = rf[ld_st.instr.ld_st_imm.rn] + ld_st.instr.ld_st_imm.imm * 4;
           dmem.write(addr, rf[ld_st.instr.ld_st_imm.rt]);
           caches.access(addr);
           break;
         case LDRI:
-          // todo stats
+          stats.numRegReads += 2;
+          stats.numMemWrites++;
           addr = rf[ld_st.instr.ld_st_imm.rn] + ld_st.instr.ld_st_imm.imm * 4;
           rf.write(ld_st.instr.ld_st_imm.rt, dmem[addr]);
           caches.access(addr);
           break;
         case STRR:
-          // todo stats 
+          stats.numRegReads += 3;
+          stats.numMemWrites++;
           addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
           dmem.write(addr, rf[ld_st.instr.ld_st_reg.rt]);
           caches.access(addr);
           break;
         case LDRR:
-          // todo stats
+          stats.numRegReads += 3;
+          stats.numRegWrites++;
           addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
           rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr]);
           caches.access(addr);
           break;
         case STRBI:
-          // todo stats
+          stats.numRegReads += 2;
+          stats.numMemWrites++;
           addr = ld_st.instr.ld_st_imm.imm + rf[ld_st.instr.ld_st_reg.rn];
           temp = dmem[addr];
           temp.set_data_ubyte4(0, rf[ld_st.instr.ld_st_reg.rt] & 0xFF);
@@ -424,13 +434,15 @@ void execute() {
           caches.access(addr);
           break;
         case LDRBI:
-          // todo stats
+          stats.numRegReads += 2;
+          stats.numMemWrites++;
           addr = ld_st.instr.ld_st_imm.imm + rf[ld_st.instr.ld_st_reg.rn];
           rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr].data_ubyte4(0));
           caches.access(addr);
           break;
         case STRBR:
-          // todo stats
+          stats.numRegReads += 3;
+          stats.numMemWrites++;
           addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
           temp = dmem[addr];
           temp.set_data_ubyte4(0, rf[ld_st.instr.ld_st_reg.rt] & 0xFF);
@@ -438,7 +450,8 @@ void execute() {
           caches.access(addr);
           break;
         case LDRBR:
-          // todo stats
+          stats.numRegReads += 3;
+          stats.numMemWrites++;
           addr = rf[ld_st.instr.ld_st_reg.rm] + rf[ld_st.instr.ld_st_reg.rn];
           rf.write(ld_st.instr.ld_st_reg.rt, dmem[addr].data_ubyte4(0));
           caches.access(addr);
@@ -450,11 +463,12 @@ void execute() {
       misc_ops = decode(misc);
       switch(misc_ops) {
         case MISC_PUSH:
-          // todo stats
           BitCount = countBits(misc.instr.push.reg_list) + misc.instr.push.m;
           addr = SP - 4 * BitCount;
           for (i = 0; i < BYTE_BITS; i++) {
              if ((misc.instr.push.reg_list >> i) & 1) {
+                stats.numRegReads++;
+                stats.numMemWrites++;
                 dmem.write(addr, rf[i]);
                 caches.access(addr);
                 addr += 4;
@@ -462,14 +476,17 @@ void execute() {
           }
           // Update PC register if m is active
           if (misc.instr.push.m) {
-             dmem.write(addr, LR);
-             caches.access(addr);
+            stats.numRegReads++;
+            stats.numMemWrites++;
+            dmem.write(addr, LR);
+            caches.access(addr);
           }
           rf.write(SP_REG, SP - BitCount * 4);
+          stats.numRegWrites++;
+          stats.numRegReads++;
           break;
 
         case MISC_POP:
-          // todo stats
           BitCount = countBits(misc.instr.pop.reg_list) + misc.instr.pop.m;
           addr = SP;
           for (i = 0; i < BYTE_BITS; i++) {
@@ -485,13 +502,18 @@ void execute() {
              caches.access(addr);
           }
           rf.write(SP_REG, SP + BitCount * 4);
+          stats.numMemReads += BitCount;
+          stats.numRegReads++;
+          stats.numRegWrites += 1 + BitCount; 
           break;
         case MISC_SUB:
-          // todo stats
+          stats.numRegReads++;
+          stats.numRegWrites++;
           rf.write(SP_REG, SP - (misc.instr.sub.imm*4));
           break;
         case MISC_ADD:
-          // todo stats
+          stats.numRegReads++;
+          stats.numRegWrites++;
           rf.write(SP_REG, SP + (misc.instr.add.imm*4));
           break;
       }
@@ -501,18 +523,23 @@ void execute() {
       decode(cond);
       // Once you've completed the checkCondition function,
       // this should work for all your conditional branches.
-      // todo stats (hard)
 
       if (checkCondition(cond.instr.b.cond)) {
         rf.write(PC_REG, PC + 2 * signExtend8to32ui(cond.instr.b.imm) + 2);
         stats.numRegWrites++;
         stats.numRegReads++;
+        if (2 * signExtend8to32ui(cond.instr.b.imm) > 0) { stats.numForwardBranchesTaken++; }
+        else { stats.numBackwardBranchesTaken++; }
+      } 
+      else {
+        if (2 * signExtend8to32ui(cond.instr.b.imm) > 0) { stats.numForwardBranchesNotTaken++; }
+        else { stats.numBackwardBranchesNotTaken++; }
       }
       break;
-    case UNCOND:
+      
+      case UNCOND:
       // Essentially the same as the conditional branches, but with no
       // condition check, and an 11-bit immediate field
-      // todo some stats
       decode(uncond);
       rf.write(PC_REG, PC + (2 * signExtend11to32ui(uncond.instr.b.imm) + 2));
       stats.numRegWrites++;
@@ -531,6 +558,9 @@ void execute() {
          }            
       }
       rf.write(ldm.instr.ldm.rn, rf[ldm.instr.ldm.rn] + (BitCount * 4));
+      stats.numMemReads += BitCount;
+      stats.numRegReads++;
+      stats.numRegWrites += 1 + BitCount;
       break;
     case STM:
       decode(stm);
@@ -546,6 +576,9 @@ void execute() {
          }            
       }
       rf.write(stm.instr.stm.rn, rf[stm.instr.stm.rn] + BitCount * 4);
+      stats.numRegReads++;
+      stats.numMemWrites += BitCount;
+      stats.numRegWrites++;
       break;
     case LDRL:
       // This instruction is complete, nothing needed
@@ -575,6 +608,8 @@ void execute() {
       setNFlag(SP + (addsp.instr.add.imm * 4));
       setZFlag(SP + (addsp.instr.add.imm * 4));
       setCarryOverflow(SP,addsp.instr.add.imm * 4, OF_ADD);
+      stats.numRegReads++;
+      stats.numRegWrites++;
       break;
     default:
       cout << "[ERROR] Unknown Instruction to be executed" << endl;
